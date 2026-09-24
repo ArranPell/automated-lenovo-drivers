@@ -1,0 +1,3 @@
+# Local-only scanner denylist: an identifier list, never committed
+distill-and-wrap/scripts/denylist.txt
+.wrap/
