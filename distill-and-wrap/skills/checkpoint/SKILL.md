@@ -42,7 +42,7 @@ credentials, or finding specifics; generalise to role.
 2. Write each target doc per `<root>/references/write-mechanics.md`. Do it
    here, not in a subagent: this session already holds the context, and a
    cold subagent costs far more than the doc reads it would save
-   (claude/12, 2026-09-24).
+   (claude/12-lessons-claude, 2026-09-24).
 3. Do not re-sync the board — the weekday sync task covers it.
 4. Tell Matt in one line what landed. "Revert that" → an inverse block,
    same route.

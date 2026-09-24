@@ -62,7 +62,7 @@ Anchor examples the project already uses:
 - `Open Threads › Active › <thread name> → move to Parked`
 - `Open Threads › Active › <thread name> › State + Next step + Blocked on` (park-and-fork)
 - `Open Threads › Active, new thread (stub)`
-- `Platform gotchas, new dated entry`
+- `New dated entry, newest first` (claude/12-lessons-<topic>)
 - `Working-style calibrations, new dated entry`
 - `Live, new entry`
 - `<Platform section>, new item` (claude/13)
@@ -114,9 +114,9 @@ Scanner: clean
   validation (expect single digits, down from ~7.9k/day), then decide whether
   the remaining data sources follow."
 
-- **Doc:** claude/12-lessons-gotchas.md
+- **Doc:** claude/12-lessons-siem-platform.md
 - **Action:** ADD
-- **Anchor:** Platform gotchas, new dated entry
+- **Anchor:** New dated entry, newest first
 - **Content:**
   - **2026-08-26 — Netwrix's per-data-source auto-adjust toggle is silently
     re-enabled when a monitoring plan is re-saved through the wizard.** The

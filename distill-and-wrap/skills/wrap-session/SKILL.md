@@ -51,7 +51,8 @@ Work in this order:
    (`DEPLOYED:` / `PILOTED:` / `PARKED:`, or said a deployed thing was
    removed → `Retired`), quoted in `Marker:`. Notes ≤ ~80 words; point at
    claude/12 and claude/11, don't repeat them.
-3. **claude/12** — one dated entry per distinct lesson, bold symptom-first
+3. **claude/12-lessons-<topic>** — one dated entry per distinct lesson in the
+   file for its platform (see `12-lessons.md`), bold symptom-first
    lead. Suspected repeat → write it as a cross-referencing instance and say
    so in the Anchor. Include the ones that cost time even if they look
    obvious now. Something Claude got wrong and Matt caught is a calibration;

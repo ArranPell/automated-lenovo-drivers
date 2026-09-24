@@ -26,7 +26,7 @@ reviewed.
 - **Notes ≤ ~80 words** (conciseness rule, 2026-08-13): what it is, what state,
   what is outstanding, any caveat affecting trust. It does NOT restate
   mechanism (claude/12 owns that) or outstanding work in detail (claude/11
-  owns that). Point, don't repeat: "Mechanism: claude/12, YYYY-MM-DD." Most
+  owns that). Point, don't repeat: "Mechanism: claude/12-lessons-<topic>, YYYY-MM-DD." Most
   existing rows predate the rule and run longer — apply it to Notes the packet
   delivers, and do not trim existing rows unasked.
 - **Run-on-demand convention (2026-08-25):** a utility with no schedule and no

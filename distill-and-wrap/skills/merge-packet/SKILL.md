@@ -68,7 +68,7 @@ The rules that most often go wrong:
   status-date order. Never delete; `Retired`. Trim a delivered Note over
   ~80 words (move the excess or say it was dropped); never trim existing
   rows. Bump header `Last reviewed` on a status change.
-- **claude/12.** Search the section for the same point first. Gotcha repeat
+- **claude/12-lessons-*.** Write only the named topic file; search it for the same point first. Gotcha repeat
   → new dated entry cross-referencing the earlier one (confirm it resolves).
   Third calibration on a point → consolidate into one with dated instances.
   New entries at the top of their section. Corrections in place, with an

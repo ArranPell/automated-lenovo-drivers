@@ -1,4 +1,4 @@
-# distill-and-wrap (v0.4.1)
+# distill-and-wrap (v0.4.2)
 
 Two skills that close the loop between a work session in the NLC Security
 project and the living docs it should feed.
@@ -42,6 +42,12 @@ the identifier scanner over the packet as a hard gate, reads the target docs,
 applies each block under that doc's contract with surgical
 pull-edit-upload writes (byte-exact, never retyped), re-syncs the board if claude/11 changed, re-scans what it wrote, and prints a change report that
 names what it did not touch.
+
+## What changed in v0.4.2
+
+- Doc rules follow the 2026-09-24 doc-set tidy: claude/12 is now per-topic
+  `claude/12-lessons-*` files (the rules file maps topics to files, and
+  pointers name the file); claude/11 gains "state is current state".
 
 ## What changed in v0.4.1
 

@@ -18,7 +18,7 @@ project instructions):
 |-----------|----------|
 | Names a tool we run or explicitly don't; a licensing/scope constraint | Project instructions (spine) — staged via **claude/10** |
 | Is a version, scale figure, or how a tool is configured here | **claude/06** — folded in directly, never staged |
-| Is a platform quirk, failure mode, or something that misleads | **claude/12** |
+| Is a platform quirk, failure mode, or something that misleads | **claude/12-lessons-<topic>** (by platform) |
 | Is an open finding, in-flight work, or a handoff to someone else | **claude/11** |
 | Is the status of something built in a chat | **claude/05** |
 | Is a thing we might do someday, with no state and no date | **claude/13** |
@@ -45,7 +45,7 @@ Checked by the merge side after every merge, and by the residual sweep:
 6. Every claude/10 entry carries a tag.
 7. Every claude/11 thread parked **this merge** has a revive trigger. Older
    parks without one are reported as pre-existing, not fixed.
-8. Any cross-doc pointer the merge wrote ("see claude/12, YYYY-MM-DD")
+8. Any cross-doc pointer the merge wrote ("see claude/12-lessons-<topic>, YYYY-MM-DD")
    resolves to an entry that exists.
 
 Invariants are checked on the docs this merge touched. A pre-existing failure

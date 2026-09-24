@@ -55,6 +55,9 @@ completed.** <why>` (precedent 2026-08-25).
   reviewed` moves on any accuracy check or edit. The morning sweep keys
   staleness on `Last touched`; bumping it on a tidy-up hides stalled work. A
   packet UPDATE without `Touched:` gets the question, not an assumption.
+- **State is current state.** Overwrite it; do not append a dated diary.
+  Mechanism goes to claude/12-lessons-*, status to claude/05. Aim for a
+  thread block under ~1.5 KB (header rule, 2026-09-24).
 - **Active cap.** Never more than five; something in means something out
   (to Ready, Waiting-on or Parked). A Due that slips twice means the next step
   is too big — shrink it or demote the thread.
