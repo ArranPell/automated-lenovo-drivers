@@ -1,0 +1,16 @@
+{
+  "name": "distill-and-wrap",
+  "version": "0.3.2",
+  "description": "End-of-session discipline for the NLC Security project: stubs, checkpoints and park-and-fork updates written in-session behind an identifier scan, and a wrap packet that Matt reviews and an isolated Sonnet subagent merges into the claude/ living docs under each doc's own rules.",
+  "author": {
+    "name": "Matt Colford"
+  },
+  "keywords": [
+    "session-summary",
+    "sanitization",
+    "documentation",
+    "handoff",
+    "nlc-security",
+    "claude-project"
+  ]
+}

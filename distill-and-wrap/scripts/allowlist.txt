@@ -1,0 +1,71 @@
+# Shipped allowlist for the NLC project docs. Substring, case-insensitive.
+# Only genuinely PUBLIC values belong here. Every entry is a permanent hole in
+# the scan, so prefer the most specific string that covers the case.
+#
+# DELIBERATELY ABSENT: dev.azure.com, visualstudio.com, sharepoint.com,
+# onmicrosoft.com. URLs on those hosts carry the organisation/tenant name in
+# the path or subdomain; allowlisting the host would wave the org name through.
+# Write "the wiki" / "the register on SharePoint" instead.
+
+# Claude / Anthropic (artifact URLs are the project's own; the GUID is an artifact id)
+claude.ai
+claude.com
+anthropic.com
+
+# Advisory feeds
+cyber.gc.ca
+talosintelligence.com
+rapid7.com
+qualys.com
+bleepingcomputer.com
+msrc.microsoft.com
+
+# Vendor documentation
+microsoft.com
+learn.microsoft.com
+office.com
+cisco.com
+duo.com
+meraki.com
+logrhythm.com
+exabeam.com
+netwrix.com
+ivanti.com
+barracuda.com
+manageengine.com
+connectwise.com
+bmc.com
+lenovo.com
+github.com
+cisecurity.org
+nist.gov
+mitre.org
+pcisecuritystandards.org
+learndmarc.com
+
+# Threat-intel feed sources referenced in LogRhythm TIS wiring
+abuse.ch
+alienvault.com
+sans.edu
+dshield.org
+torproject.org
+
+# Microsoft consumer mail domains (appear in deliverability gotchas)
+outlook.com
+hotmail.com
+live.com
+msn.com
+
+# .NET namespace false positives (".net" TLD)
+asp.net
+system.net
+ado.net
+vb.net
+
+# Package registries
+npmjs.org
+pypi.org
+nuget.org
+
+# Government advisory sources cited in the docs (added v0.3.1)
+cisa.gov
