@@ -1,6 +1,6 @@
 ---
 name: checkpoint
-description: Mid-session writes to the NLC Security project's claude/ docs — thread stubs, checkpoints (thread closes, moves to Waiting-on, parks, or a DEPLOYED/PILOTED/PARKED marker lands) and park-and-fork — scanned and applied by an isolated merge subagent. Use unprompted at those moments, or when the user says "stub this thread", "checkpoint this", or "park and fork" followed by a fork name.
+description: Mid-session writes to the NLC Security project's claude/ docs — thread stubs, checkpoints (thread closes, moves to Waiting-on, parks, or a DEPLOYED/PILOTED/PARKED marker lands) and park-and-fork — scanned, then written inline with byte-exact pull-edit-verify. Use unprompted at those moments, or when the user says "stub this thread", "checkpoint this", or "park and fork" followed by a fork name.
 ---
 
 # Checkpoint
@@ -34,14 +34,17 @@ you write to that doc in this chat. Sanitize per
 `<root>/references/sanitization-rules.md` — no hostnames, IPs, usernames,
 credentials, or finding specifics; generalise to role.
 
-## Apply
+## Apply — inline, in this session
 
 1. Save the block(s) to a local file; run
    `python3 <root>/scripts/scan.py <file>`. Any finding blocks the write
    until generalised.
-2. Spawn the merge subagent per `<root>/references/merge-subagent.md` with
-   `Mode: in-session`. Do not read or write the doc in this chat.
-3. Tell Matt in one line what landed. "Revert that" → an inverse block,
+2. Write each target doc per `<root>/references/write-mechanics.md`. Do it
+   here, not in a subagent: this session already holds the context, and a
+   cold subagent costs far more than the doc reads it would save
+   (claude/12, 2026-09-24).
+3. Do not re-sync the board — the weekday sync task covers it.
+4. Tell Matt in one line what landed. "Revert that" → an inverse block,
    same route.
 
 A change written here is referenced in the wrap packet ("already written via

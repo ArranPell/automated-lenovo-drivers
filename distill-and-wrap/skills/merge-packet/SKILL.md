@@ -1,6 +1,6 @@
 ---
 name: merge-packet
-description: Merges a sanitized merge packet ("**Doc:** claude/" blocks) into the NLC Security project's claude/ docs via the Projects tool — scan gate, per-doc rules, byte-exact pull-edit-upload-verify writes, board re-sync, change report. Normally run by the isolated subagent that wrap-session and checkpoint spawn; use directly when the user pastes a MERGE PACKET or says "merge this into the docs" / "apply this packet".
+description: Merges a sanitized merge packet ("**Doc:** claude/" blocks) into the NLC Security project's claude/ docs via the Projects tool — scan gate, per-doc rules, byte-exact pull-edit-upload-verify writes, board re-sync, change report. Normally run by the isolated subagent that wrap-session spawns; use directly when the user pastes a MERGE PACKET or says "merge this into the docs" / "apply this packet".
 ---
 
 # Merge Packet
@@ -20,15 +20,13 @@ doc's own header comment wins over these snapshots.
 deliberate — the isolation half of the sanitization gate. Do not go looking
 for the source chat. You cannot ask Matt anything: wherever this skill says
 **ask**, skip that block, apply the rest, and list it under `Ask Matt`.
-`Mode: in-session` means a checkpoint: no header or closing lines are
-expected, and skip the board re-sync and the `Untouched` line.
 
 ## 1. Parse
 
 Extract every block: Doc, Action, Anchor, Content, plus optional `Touched`,
 `Marker`, `Tag`, `Promoted-from`, `Confirmation-date`; the header if present.
 Stop and say what is wrong if a required field is missing, Content is
-visibly truncated, or a wrap-mode packet lacks its closing lines. Never
+visibly truncated, or the packet lacks its closing lines. Never
 reconstruct by inference. A v1 packet (`=== WRAP PACKET v1 ===`): translate
 to per-doc blocks first, show the translation, and say so.
 
@@ -99,39 +97,14 @@ the claude/13 template header.
 
 ## 4. Write, verify
 
-The Projects tool has no patch method. **Never retype a doc** — pull it
-byte-exact from the transcript. **Never two writes in parallel.** Work in
-one folder; for each changed doc in turn, apply all its blocks in one pass:
-
-1. `project_read` the doc now, and read its header comment.
-2. Pull it and make the working copy:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pull_doc.py pull <doc-path> <doc>-orig.md
-   cp <doc>-orig.md <doc>-new.md
-   ```
-   Stale read → re-read and retry. Any other failure → hand-transcribe this
-   doc only, and say so in the report.
-3. Each change is an exact-string edit on `<doc>-new.md` whose anchor
-   matches once. Never regenerate the doc.
-4. Check the diff and scan only what this merge adds (whole-doc scans fail
-   forever on pre-existing public values):
-   ```bash
-   diff <doc>-orig.md <doc>-new.md
-   diff <doc>-orig.md <doc>-new.md | grep '^>' | sed 's/^> //' | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/scan.py -
-   ```
-   Only intended hunks may appear. A finding blocks the upload. Never "fix"
-   pre-existing content the packet does not touch.
-5. `project_write` with `local_path`. On timeout, retry immediately from the
-   local file — the doc may already be deleted. Never finish on a timed-out
-   write.
-6. `project_read` again, then
-   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pull_doc.py verify <doc-path> <doc>-new.md`.
-   Any difference: stop and report. (Hand-transcribed doc: heading count
-   plus distinctive strings from top, middle and end instead.)
+For each changed doc in turn, apply all its blocks in one pass using
+`${CLAUDE_PLUGIN_ROOT}/references/write-mechanics.md`: read now, pull
+byte-exact, exact-string edits, diff and scan the added lines, upload,
+read back and byte-verify. Never two writes in parallel.
 
 Then check the cross-doc invariants in `routing.md` on the docs touched.
 
-**Board** (wrap mode). If claude/11 changed materially, re-sync the board
+**Board.** If claude/11 changed materially, re-sync the board
 per claude/14 — read it first; it is authoritative, including the count
 gate. Failed gate → do not write the board; report it. No artifact-database
 tool → say so; the next weekday sync covers it.

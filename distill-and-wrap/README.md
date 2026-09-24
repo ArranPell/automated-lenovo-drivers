@@ -1,4 +1,4 @@
-# distill-and-wrap (v0.4.0)
+# distill-and-wrap (v0.4.1)
 
 Two skills that close the loop between a work session in the NLC Security
 project and the living docs it should feed.
@@ -19,8 +19,7 @@ sensitive chats can be deleted once the work is done:
 
 Since v0.3.0 (2026-09-24) chat and Cowork are one experience, so a chat can
 write the docs itself. Small changes (stubs, checkpoints, park-and-fork) are
-written **in-session**, unprompted, behind the identifier scanner, by the
-same isolated merge subagent the wrap uses (since v0.4.0). The wrap is
+written **in-session**, unprompted, behind the identifier scanner. The wrap is
 still a **merge packet** — one `Doc / Action / Anchor / Content` block per
 change — but it is scanned, shown to Matt, and on his go merged by a **Sonnet
 subagent that receives only the packet**. That rebuilds the old sanitization
@@ -31,8 +30,8 @@ sees the chat. Process of record: claude/15 §3–§4.
 ## The three skills
 
 **checkpoint** — the mid-session writes (stub, checkpoint, park-and-fork),
-unprompted as they fall due. Drafts the block, scans it, and hands it to the
-merge subagent; the doc itself never enters the chat.
+unprompted as they fall due. Drafts the block, scans it, and writes it inline
+with the shared byte-exact write mechanics.
 
 **wrap-session** — the end of the chat: wrap, discard, or residual sweep.
 Drafts under each doc's rules, sanitizes and scans, shows the packet, and on
@@ -43,6 +42,19 @@ the identifier scanner over the packet as a hard gate, reads the target docs,
 applies each block under that doc's contract with surgical
 pull-edit-upload writes (byte-exact, never retyped), re-syncs the board if claude/11 changed, re-scans what it wrote, and prints a change report that
 names what it did not touch.
+
+## What changed in v0.4.1
+
+- **Checkpoints are written inline again.** v0.4.0 routed them through the
+  merge subagent on the theory that it would keep doc reads out of the chat.
+  The project's own measurement (claude/12, 2026-09-24) says a cold subagent
+  costs ~133k tokens for a four-call probe, more than the reads it saves. The
+  subagent stays for the wrap merge, where its isolation is the point.
+- **One home for write mechanics:** `references/write-mechanics.md`, used by
+  both the checkpoint skill and merge-packet.
+- **claude/11 rules re-cut to the real five-section model** (Active, Ready,
+  Waiting-on grouped by contact with `Last pinged`, Parked, Completed). The
+  snapshot still described the pre-2026-09-03 three-section doc.
 
 ## What changed in v0.4.0
 
@@ -71,9 +83,8 @@ Fixes:
 
 Cost and speed:
 
-- **All doc writes go through the Sonnet merge subagent**, checkpoints
-  included. A write needs the doc read in full twice; done in the main chat,
-  both copies stayed in its context and were re-sent on every later turn.
+- ~~All doc writes go through the Sonnet merge subagent~~ — reverted in
+  v0.4.1; see above.
 - **Merge reads each doc once, just in time** — the up-front bulk read
   (three full reads per doc) is gone; now it is read, edit, write, read back.
 - **Residual sweep skips re-reading docs whose upload was byte-verified.**
@@ -154,7 +165,8 @@ distill-and-wrap/
 ├── README.md
 ├── references/
 │   ├── packet-format.md        the handoff contract
-│   ├── merge-subagent.md       how to spawn the isolated merger (shared)
+│   ├── merge-subagent.md       how to spawn the isolated wrap merger
+│   ├── write-mechanics.md      read → pull → edit → scan → write → verify
 │   ├── doc-rules/
 │   │   ├── routing.md          routing table, spine test, cross-doc invariants
 │   │   └── 05-…, 06-…, 10-…, 11-…, 12-…, 13-….md   per-doc contracts

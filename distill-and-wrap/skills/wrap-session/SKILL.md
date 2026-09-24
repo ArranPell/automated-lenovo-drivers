@@ -102,8 +102,8 @@ Do not merge before Matt's go. His look is the human half of the gate.
 ## Step 4 — Merge
 
 On his go, spawn the merge subagent per
-`<root>/references/merge-subagent.md` with `Mode: wrap` and the scanned
-packet file's text. Relay its change report. Close with the commit nudge
+`<root>/references/merge-subagent.md` with the scanned packet file's
+text. Relay its change report. Close with the commit nudge
 (the claude/ set exists only in the project — commit it to the repo if that
 is due) and "Delete this chat now that the merge is done."
 

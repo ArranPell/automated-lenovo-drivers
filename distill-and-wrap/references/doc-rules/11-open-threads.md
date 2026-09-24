@@ -1,19 +1,36 @@
-# claude/11-open-threads.md — threads, two date fields, three sections
+# claude/11-open-threads.md — threads, two date fields, five sections
 
-**Shape.** `## Active`, `## Parked`, `## Completed (recent)`. One `###` block
-per thread. Block lines, in order:
+**Shape.** `## Active` (hard cap FIVE; the only section with Due dates),
+`## Ready` (unblocked queue, priority order top to bottom, no Due, never
+flagged), `## Waiting-on` (grouped by contact: `### <contact>` then one
+`#### <thread>` per entry, keyed on `Last pinged`), `## Parked` (named revive
+trigger, never flagged), `## Completed (recent)`. Threads are `###` blocks
+everywhere except Waiting-on (`####`). Block lines, in order:
 
-Active thread:
+Active / Ready thread (Ready carries `**Due:** —`):
 
 ```
 ### <Thread name — manager-facing name where one exists>
 - **Last touched:** YYYY-MM-DD · **Last reviewed:** YYYY-MM-DD · **Due:** YYYY-MM-DD | — | <short event, e.g. "next servicing reboot">
+- **Triage YYYY-MM-DD:** … (optional; a dated snapshot — overwrite at the next pass, never stack)
 - **Goal:** …
 - **State:** …
-- **Next step:** …
+- **Next step:** … (Active: doable in under an hour)
 - **Note YYYY-MM-DD:** … (optional; the label may carry the date, or read "Design note")
 - **Blocked on:** <fork name> (park-and-fork only — remove when the fork's wrap updates this entry)
 ```
+
+Waiting-on thread — `Last pinged` replaces `Due`; `—` plus a reason when
+never pinged:
+
+```
+#### <Thread name>
+- **Last touched:** YYYY-MM-DD · **Last reviewed:** YYYY-MM-DD · **Last pinged:** YYYY-MM-DD
+- **Goal:** … · **State:** … · **Next step:** … (each its own line, as above)
+```
+
+A move to Waiting-on files the entry under its contact's `###` heading,
+creating that heading if the contact is new.
 
 Parked thread — **no Due line**; `Revive trigger` replaces `Next step` and may
 sit before or after a `Note`; `Last touched` may be month-only for old parks:
@@ -38,6 +55,9 @@ completed.** <why>` (precedent 2026-08-25).
   reviewed` moves on any accuracy check or edit. The morning sweep keys
   staleness on `Last touched`; bumping it on a tidy-up hides stalled work. A
   packet UPDATE without `Touched:` gets the question, not an assumption.
+- **Active cap.** Never more than five; something in means something out
+  (to Ready, Waiting-on or Parked). A Due that slips twice means the next step
+  is too big — shrink it or demote the thread.
 - **Stub at open:** any chat expected to outlive the sitting gets a thread stub
   (Goal + one line of State) at the first wrap-worthy moment. Throwaway Q&A is
   exempt only if declared at open.
