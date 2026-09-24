@@ -1,4 +1,4 @@
-# distill-and-wrap (v0.4.2)
+# distill-and-wrap (v0.4.3)
 
 Two skills that close the loop between a work session in the NLC Security
 project and the living docs it should feed.
@@ -42,6 +42,21 @@ the identifier scanner over the packet as a hard gate, reads the target docs,
 applies each block under that doc's contract with surgical
 pull-edit-upload writes (byte-exact, never retyped), re-syncs the board if claude/11 changed, re-scans what it wrote, and prints a change report that
 names what it did not touch.
+
+## What changed in v0.4.3
+
+- **Chat-only artifacts gate.** Every ending (wrap, discard, residual sweep)
+  lists work products whose only copy is in the chat. Their claude/05 Note
+  says so, the packet's closing lines list them, and the delete-chat line is
+  withheld until each is committed or Matt accepts losing it. Validated work
+  had been lost to chat deletion twice.
+- **The board has one writer: the weekday sync task.** Merges no longer
+  re-sync it — the heaviest optional step in a wrap, and the first live
+  merger skipped it anyway. Staleness is bounded at one weekday.
+- **Denylist that persists.** `scan.py` also reads `denylist.txt` beside
+  itself and `~/.claude/distill-and-wrap/denylist.txt`, not just `.wrap/`,
+  and warns on every run when no denylist is loaded. The repo's
+  `.gitignore` excludes it.
 
 ## What changed in v0.4.2
 

@@ -78,10 +78,13 @@ Pattern classes: `arn`, `guid`, `unc`, `url`, `email`, `account`, `mac`,
 plus `denylist`.
 
 **Blind spot: bare short hostnames** (`DC01`, `dc01:389`). Nothing generic
-distinguishes them from words. Put the estate's naming conventions in
-`.wrap/denylist.txt` as case-insensitive regexes (e.g. `\bnlc[a-z]{2,4}\d{2}\b`);
-denylist hits are never allowlisted. That file is itself an identifier list —
-keep it local, never in the docs.
+distinguishes them from words. Put the estate's naming conventions in a
+denylist, as case-insensitive regexes (e.g. `\bnlc[a-z]{2,4}\d{2}\b`);
+denylist hits are never allowlisted. The scanner reads `denylist.txt` beside
+`scan.py` in the installed plugin, `~/.claude/distill-and-wrap/denylist.txt`,
+and `.wrap/denylist.txt` upward from the scanned file. It is itself an
+identifier list — keep it local, never in the docs or a repo. With none
+loaded, every scan prints a warning so the gap stays visible.
 
 Known false positives: four-part version numbers (`1.2.3.4`) flag as `ipv4`;
 allowlist the exact string. Public vendor domains flag as `fqdn`/`url` by

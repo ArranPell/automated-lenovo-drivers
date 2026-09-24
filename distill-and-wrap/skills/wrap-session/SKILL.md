@@ -24,7 +24,7 @@ python3 -c "import glob,json,os;c=[(json.load(open(p)).get('version','0'),os.pat
 | Situation | Path |
 |-----------|------|
 | "distill and wrap" | Steps 1–4 |
-| "discard, nothing to keep" | No blocks, no write. Say the chat has a recorded ending and give the delete-chat line. Do not manufacture content to justify the session. |
+| "discard, nothing to keep" | No blocks, no write. Run the chat-only check (Step 1) first — "nothing to keep" still loses any artifact that exists only here. Then say the chat has a recorded ending and give the delete-chat line. Do not manufacture content to justify the session. |
 | Docs were written directly as the work went, nothing sensitive entered | Residual sweep — Step 5 |
 
 No Projects tool at all (older surface)? Print the packet for a session that
@@ -66,6 +66,13 @@ Work in this order:
    item that became real work: the claude/11 ADD carries `Promoted-from:`
    and a claude/13 REMOVE accompanies it.
 
+**Chat-only work products.** List every artifact this session produced —
+script, workbook, doc, runbook, flow or rule export — whose only copy is in
+this chat. Each one's claude/05 Note says "chat output only — commit to
+<where>", and the list goes in the packet's closing lines. Deleting the chat
+destroys them; this project has lost validated work that way twice
+(claude/12-lessons-claude, 2026-09-03).
+
 Decisions have no doc. Worth keeping → the ledger Note ("Decision worth not
 re-litigating: …") or the thread State; ADR weight → flag "ADR candidate for
 the wiki" in the closing paragraph. A doc with nothing is omitted — no
@@ -96,7 +103,8 @@ the block:
 2. Anything the merge would have to ask (unmarked status, untagged claude/10
    entry, uncertain thread match) — **resolve it with Matt now**; the
    subagent cannot ask.
-3. "Scanner: clean. Say **merge** to apply."
+3. **Chat-only artifacts:** the list from Step 1, or "none".
+4. "Scanner: clean. Say **merge** to apply."
 
 Do not merge before Matt's go. His look is the human half of the gate.
 
@@ -104,9 +112,7 @@ Do not merge before Matt's go. His look is the human half of the gate.
 
 On his go, spawn the merge subagent per
 `<root>/references/merge-subagent.md` with the scanned packet file's
-text. Relay its change report. Close with the commit nudge
-(the claude/ set exists only in the project — commit it to the repo if that
-is due) and "Delete this chat now that the merge is done."
+text. Relay its change report, then close per **Closing** below.
 
 ## Step 5 — Residual sweep
 
@@ -122,7 +128,19 @@ The docs are already current; this is a check, not a packet.
 3. Scan only what this session added:
    `diff <before> <after> | grep '^>' | sed 's/^> //' | python3 <root>/scripts/scan.py -`.
    Fix and rewrite any finding.
-4. If claude/11 changed materially, re-sync the board per claude/14 (count
-   gate included), or say the next weekday sync will pick it up.
+4. Run the chat-only check from Step 1.
 5. Say "No packet needed — the docs were written directly. Here is what
-   landed:" with a line per doc, then the commit nudge and delete-chat line.
+   landed:" with a line per doc, then close per **Closing** below.
+
+## Closing (every ending)
+
+1. **Chat-only artifacts gate.** If Step 1 listed any, do NOT give the
+   delete-chat line. Say "Before deleting this chat, commit: <list>" and
+   give the delete line only once Matt says each is committed or explicitly
+   accepts losing it.
+2. Commit nudge: the claude/ set exists only in the project — refresh the
+   local copy if that is due.
+3. "Delete this chat now that the merge is done."
+
+The board is not re-synced at wrap: the weekday sync task is its only
+writer (claude/14).

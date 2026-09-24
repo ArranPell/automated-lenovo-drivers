@@ -1,6 +1,6 @@
 ---
 name: merge-packet
-description: Merges a sanitized merge packet ("**Doc:** claude/" blocks) into the NLC Security project's claude/ docs via the Projects tool — scan gate, per-doc rules, byte-exact pull-edit-upload-verify writes, board re-sync, change report. Normally run by the isolated subagent that wrap-session spawns; use directly when the user pastes a MERGE PACKET or says "merge this into the docs" / "apply this packet".
+description: Merges a sanitized merge packet ("**Doc:** claude/" blocks) into the NLC Security project's claude/ docs via the Projects tool — scan gate, per-doc rules, byte-exact pull-edit-upload-verify writes, change report. Normally run by the isolated subagent that wrap-session spawns; use directly when the user pastes a MERGE PACKET or says "merge this into the docs" / "apply this packet".
 ---
 
 # Merge Packet
@@ -104,10 +104,8 @@ read back and byte-verify. Never two writes in parallel.
 
 Then check the cross-doc invariants in `routing.md` on the docs touched.
 
-**Board.** If claude/11 changed materially, re-sync the board
-per claude/14 — read it first; it is authoritative, including the count
-gate. Failed gate → do not write the board; report it. No artifact-database
-tool → say so; the next weekday sync covers it.
+**Board.** Not re-synced here. The weekday sync task is the board's only
+writer (claude/14); a merge never touches it.
 
 ## 5. Report
 
@@ -124,7 +122,6 @@ Scan        packet: clean; added lines: clean
 Conflicts   1 — see "<thread>" in claude/11
 Ask Matt    claude/10 entry tag (CHANGE vs CORRECTION) for "<entry>"
 Untouched   Active threads not mentioned: <list>
-Board       claude/11 changed — re-synced per claude/14, count gate passed (12/12)
 Writes      5 docs, sequential, all pulled (no retyping), all byte-verified
 ```
 
@@ -132,6 +129,6 @@ Writes      5 docs, sequential, all pulled (no retyping), all byte-verified
 stalled one gets noticed.
 
 As a subagent, stop at the report. Run directly, close with three lines:
-the commit nudge (the claude/ docs exist only in the project; commit them if
-due), the board outcome, and "Delete the source chat now that the merge is
-done."
+the commit nudge (the claude/ docs exist only in the project; refresh the
+local copy if due), and "Delete the source chat once anything that exists
+only in it is committed."

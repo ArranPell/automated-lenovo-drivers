@@ -86,7 +86,10 @@ After the last block:
 
 1. One paragraph: what was captured, in plain language, so Matt can confirm
    nothing was lost.
-2. Scanner result and "Say **merge** to apply." The delete-chat reminder comes
+2. **Chat-only artifacts:** every work product whose only copy is in the
+   chat, with where it should be committed — or "none". The delete-chat line
+   is withheld until each is committed or Matt accepts losing it.
+3. Scanner result and "Say **merge** to apply." The delete-chat reminder comes
    after the merge reports back, not here.
 
 In-session writes (stub, checkpoint, park-and-fork) need no closing lines —
@@ -126,6 +129,7 @@ Scanner: clean
 
 Captured: the co-owner agreement and the first two data sources to change,
 plus one Netwrix quirk about the toggle not surviving a wizard re-save.
+Chat-only artifacts: none.
 Scanner: clean. Say merge to apply.
 ```
 

@@ -25,10 +25,17 @@ One entry per line, '#' starts a comment. Matching is by class:
   - everything else: the entry must equal the whole match ("1.2.3.4" does not
     cover "11.2.3.45").
 
-Denylist: .wrap/denylist.txt (same search), one case-insensitive regex per
-line — estate naming conventions the generic patterns cannot see, such as a
-short hostname prefix. Denylist hits are never allowlisted. Keep that file
-out of the docs; it is itself an identifier list.
+Denylist: one case-insensitive regex per line — estate naming conventions the
+generic patterns cannot see, such as a short hostname prefix. Denylist hits
+are never allowlisted. Read from every one of these that exists:
+  1. denylist.txt beside this script (in the installed plugin — private and
+     persistent, but a plugin reinstall lands in a new directory, so copy it
+     forward after an upgrade);
+  2. ~/.claude/distill-and-wrap/denylist.txt (survives plugin upgrades where
+     the home directory persists);
+  3. .wrap/denylist.txt, found upward from the scanned file, then the cwd.
+Keep it out of the docs and out of any repo; it is itself an identifier list.
+With no denylist loaded the scanner says so on every run.
 
 Scope: the project sanitization rule is "no hostnames, IPs, usernames,
 credentials, or security finding specifics." This scanner covers the first
@@ -185,6 +192,11 @@ def load_lists(start_path):
     for path in find_local("allowlist.txt", starts):
         read_list_file(path, allow)
     deny_src = []
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+    for path in [os.path.join(os.path.dirname(os.path.abspath(__file__)), "denylist.txt"),
+                 os.path.join(base, "distill-and-wrap", "denylist.txt")]:
+        if os.path.isfile(path):
+            read_list_file(path, deny_src, lower=False)
     for path in find_local("denylist.txt", starts):
         read_list_file(path, deny_src, lower=False)
     deny = []
@@ -297,6 +309,9 @@ def main(argv):
         allowlist, denylist = load_lists(target)
 
     findings = scan(lines, allowlist, denylist)
+    if not denylist:
+        sys.stderr.write("WARNING: no denylist loaded — bare short hostnames are NOT checked. "
+                         "See the Denylist note at the top of scan.py.\n")
 
     if not findings:
         print("CLEAN — %d lines scanned, %d pattern classes, %d denylist patterns, 0 findings."

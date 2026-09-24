@@ -90,8 +90,7 @@ completed.** <why>` (precedent 2026-08-25).
   report.
 - **Companion board.** The board is db-backed: the page holds no
   thread data and reads one artifact-database document. The header comment
-  still carries the board artifact's URL. Whenever this doc changes materially
-  (thread added, closed, re-dated, or moved between sections), the merging
-  session re-syncs that document per claude/14, count gate included — there
-  is no `BOARD IS STALE` line to write any more, and the page is never
-  republished to refresh it. claude/14 is authoritative.
+  still carries the board artifact's URL. The weekday sync task is its ONLY
+  writer (decided 2026-09-24): merges and checkpoints never re-sync it, and
+  the page is never republished to refresh it. Staleness is bounded at one
+  weekday. claude/14 is authoritative.
