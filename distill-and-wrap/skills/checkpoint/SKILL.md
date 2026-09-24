@@ -1,6 +1,6 @@
 ---
 name: checkpoint
-description: Mid-session writes to the NLC Security project's claude/ docs — thread stubs, checkpoints (thread closes, moves to Waiting-on, parks, or a DEPLOYED/PILOTED/PARKED marker lands) and park-and-fork — scanned and applied by an isolated merge subagent. Use unprompted at those moments, or when the user says "stub this thread", "checkpoint this", or "park and fork <name>".
+description: Mid-session writes to the NLC Security project's claude/ docs — thread stubs, checkpoints (thread closes, moves to Waiting-on, parks, or a DEPLOYED/PILOTED/PARKED marker lands) and park-and-fork — scanned and applied by an isolated merge subagent. Use unprompted at those moments, or when the user says "stub this thread", "checkpoint this", or "park and fork" followed by a fork name.
 ---
 
 # Checkpoint
