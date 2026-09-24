@@ -1,4 +1,7 @@
-# Shipped allowlist for the NLC project docs. Substring, case-insensitive.
+# Shipped allowlist for the NLC project docs. Case-insensitive. Domains match
+# themselves and their subdomains (microsoft.com covers learn.microsoft.com);
+# other entries must equal the whole match. Email addresses are never
+# covered by a domain entry.
 # Only genuinely PUBLIC values belong here. Every entry is a permanent hole in
 # the scan, so prefer the most specific string that covers the case.
 #
@@ -6,6 +9,8 @@
 # onmicrosoft.com. URLs on those hosts carry the organisation/tenant name in
 # the path or subdomain; allowlisting the host would wave the org name through.
 # Write "the wiki" / "the register on SharePoint" instead.
+# github.com IS listed, and a github.com URL carries the org/repo in its path.
+# Point at a private repo by role ("the scripts repo"), not by URL.
 
 # Claude / Anthropic (artifact URLs are the project's own; the GUID is an artifact id)
 claude.ai
@@ -18,11 +23,9 @@ talosintelligence.com
 rapid7.com
 qualys.com
 bleepingcomputer.com
-msrc.microsoft.com
 
 # Vendor documentation
 microsoft.com
-learn.microsoft.com
 office.com
 cisco.com
 duo.com

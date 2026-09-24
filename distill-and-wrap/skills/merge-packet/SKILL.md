@@ -1,206 +1,144 @@
 ---
 name: merge-packet
-description: Merges a sanitized merge packet into the NLC Security project's living docs (claude/05 ledger, claude/06 environment reference, claude/10 changelog, claude/11 open threads, claude/12 lessons, claude/13 backlog) using the Projects tool — gating on a mechanical identifier scan first, applying each doc's own maintenance rules with surgical pull-edit-upload writes (docs are pulled byte-exact from the session transcript, never retyped), re-syncing the board when claude/11 changes, and reporting exactly what changed and what was not touched. Normally run by an isolated Sonnet subagent that wrap-session spawns with only the packet; also usable directly. Use when the user pastes text containing "**Doc:** claude/" blocks or "MERGE PACKET", or says "merge this into the docs", "fold this into the project docs", "update the project docs with this", "merge the wrap packet", "apply this packet", or asks to reconcile a session summary into the project documentation.
+description: Merges a sanitized merge packet ("**Doc:** claude/" blocks) into the NLC Security project's claude/ docs via the Projects tool — scan gate, per-doc rules, byte-exact pull-edit-upload-verify writes, board re-sync, change report. Normally run by the isolated subagent that wrap-session and checkpoint spawn; use directly when the user pastes a MERGE PACKET or says "merge this into the docs" / "apply this packet".
 ---
 
 # Merge Packet
 
-Fold a packet into the project docs so they converge on current truth instead
-of growing. Two failure modes this skill exists to prevent: **appending** (a
-stale line left beside its replacement) and **inventing** (a merge that reads
-better than its source).
+Fold a packet into the docs so they converge on current truth instead of
+growing. The two failures this prevents: **appending** (a stale line left
+beside its replacement) and **inventing** (a merge that reads better than
+its source).
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/packet-format.md` if the packet's shape
-is not already clear, and `${CLAUDE_PLUGIN_ROOT}/references/doc-rules.md`
-before the first merge of a session. The docs' own header comments win over
-either file.
+`${CLAUDE_PLUGIN_ROOT}` below means the plugin root you were given. Read
+`${CLAUDE_PLUGIN_ROOT}/references/doc-rules/routing.md` and, for each doc
+the packet touches, its file in `references/doc-rules/`. Read
+`references/packet-format.md` only if the packet's shape is unclear. Each
+doc's own header comment wins over these snapshots.
 
-**Running as a subagent (the normal case from v0.3.0).** wrap-session spawns
-you with only the packet and the plugin root path; `${CLAUDE_PLUGIN_ROOT}`
-below means that path. You have never seen the chat the packet came from, and
-that is deliberate — it is the isolation half of the sanitization gate
-(claude/15 §4). Do not go looking for the source chat. You also cannot ask
-Matt anything: wherever this skill says **ask**, skip that block, apply the
-rest, and list the skipped block under `Ask Matt` in the change report so the
-parent session can raise it.
+**As a subagent** (the normal case): you have only the packet. That is
+deliberate — the isolation half of the sanitization gate. Do not go looking
+for the source chat. You cannot ask Matt anything: wherever this skill says
+**ask**, skip that block, apply the rest, and list it under `Ask Matt`.
+`Mode: in-session` means a checkpoint: no header or closing lines are
+expected, and skip the board re-sync and the `Untouched` line.
 
-## 1. Parse the packet
+## 1. Parse
 
-Extract every block: Doc, Action, Anchor, Content, plus any optional fields
-(`Touched`, `Marker`, `Tag`, `Promoted-from`, `Confirmation-date`). Read the
-header if present for session date and ending.
-
-Stop and say what is wrong if a block is missing a required field, if Content
-is obviously truncated, or if the packet ends without the closing lines. Do
-not reconstruct by inference — a packet that lost its bottom half produces a
-merge that silently drops a session's worth of work.
-
-If the packet is in the v1 format (`=== WRAP PACKET v1 ===`), translate it into
-per-doc blocks under `doc-rules.md` first, show the translation, and say so.
+Extract every block: Doc, Action, Anchor, Content, plus optional `Touched`,
+`Marker`, `Tag`, `Promoted-from`, `Confirmation-date`; the header if present.
+Stop and say what is wrong if a required field is missing, Content is
+visibly truncated, or a wrap-mode packet lacks its closing lines. Never
+reconstruct by inference. A v1 packet (`=== WRAP PACKET v1 ===`): translate
+to per-doc blocks first, show the translation, and say so.
 
 ## 2. Scan before anything is written
-
-Save the packet text to a local file and run the scanner:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/scan.py <packet-file>
 ```
 
-The packet was scanned before Matt saw it; this is the second, independent
-run. It exits non-zero with line-anchored findings. For each finding:
+Never write while the scan fails. **As a subagent:** the packet was clean
+when drafted, so a finding means something is wrong (a changed packet or a
+different allowlist). Do not edit the packet or the allowlist — stop, and
+report the findings. **Run directly:** generalise each real identifier to
+its role per `sanitization-rules.md` and tell Matt what changed; add a
+genuinely public value to `.wrap/allowlist.txt` only with his agreement.
 
-- **A real identifier** — generalise it to its role per
-  `sanitization-rules.md`, in the packet, before merging. Tell Matt what was
-  changed so the source chat can be corrected if it is being kept.
-- **A public value** (vendor docs domain, package registry) — add it to
-  `${CLAUDE_PLUGIN_ROOT}/scripts/allowlist.txt` only if it is genuinely
-  public; note the addition in the change report.
+## 3. Apply each block under its doc's rules
 
-Never write a doc while the scan is failing. Reading the packet carefully is
-not a substitute — the scan exists because careful reading is what degrades
-at the end of a long session, and a merge session is often the end of one.
+Do NOT read every doc up front — each doc is read once, just in time, in
+step 4. Plan against that read. Docs the packet does not touch are not read,
+except where an invariant needs one (a claude/11 completion needs claude/05).
+If claude/13 is named and does not exist, create it from the template in
+`13-backlog.md` and say so.
 
-## 3. Read the current docs
+The rules that most often go wrong:
 
-`project_read` every doc the packet touches. Read the **header comment** of
-each — conventions are added there in session and may postdate
-`doc-rules.md`. If claude/13 is named and does not exist, create it from the
-template in `doc-rules.md` and say so.
+- **claude/11.** Match thread names exactly. `Last touched` moves only on
+  `Touched: yes` or a date stated in Content; otherwise an UPDATE bumps
+  `Last reviewed` alone. No `Touched` and no date → **ask**. Completion:
+  remove from Active, add the Completed (recent) entry, record the outcome
+  where it belongs (claude/05, 06 or 10, or the Completed entry alone —
+  never a manufactured ledger row). `Confirmation-date: yes` → the entry says
+  "completion date not recorded; this is the confirmation date". Park: drop
+  Due, require a Revive trigger. A fork's wrap removes the `Blocked on:`
+  line. An ADD with no exact match that resembles an existing thread: add it
+  and flag "possible rename of …".
+- **claude/05.** Status changes only with `Marker:`. No marker → hold
+  Status, apply the rest, report "status held, no marker". New rows by
+  status-date order. Never delete; `Retired`. Trim a delivered Note over
+  ~80 words (move the excess or say it was dropped); never trim existing
+  rows. Bump header `Last reviewed` on a status change.
+- **claude/12.** Search the section for the same point first. Gotcha repeat
+  → new dated entry cross-referencing the earlier one (confirm it resolves).
+  Third calibration on a point → consolidate into one with dated instances.
+  New entries at the top of their section. Corrections in place, with an
+  HTML comment or italic note giving change and date.
+- **claude/06.** Fold in; replace stale bullets in place; self-contained (no
+  "see claude/10"); remove a "Known gaps" line the fact closes; bump
+  `Last reviewed`.
+- **claude/10.** Spine only — detail goes to claude/06, say so. No `Tag:`
+  and no literal `[CHANGE]`/`[CORRECTION]` → **ask**. Never default to
+  CHANGE.
+- **claude/13.** `Promoted-from:` on a claude/11 ADD deletes the item here.
+  REMOVE needs no justification.
+- **Role descriptions** stay exactly as written, so they thread to earlier
+  mentions.
 
-Do not read docs the packet does not touch, except as the cross-doc
-invariants require (a claude/11 completion needs claude/05).
+**Conflicts.** When the packet contradicts an entry without saying it
+supersedes it: apply the packet, attach a dated conflict note naming both
+readings, list it in the report. Escalate rather than resolve a possible
+rename, a claude/05 status change without a marker, a claude/12 fix that
+contradicts the recorded fix for the same symptom (keep both, dated), or a
+missing claude/10 tag.
 
-## 4. Apply each block under its doc's rules
+**Add nothing the packet does not contain** — no inferred facts, no
+smoothing prose. Only mechanical additions: dates, `Last reviewed` bumps,
+the claude/13 template header.
 
-Work doc by doc; within a doc, in packet order. The rules that most often go
-wrong:
+## 4. Write, verify
 
-**claude/11.** Match the thread name exactly. `Last touched` moves only when
-`Touched: yes`, or when the Content itself states the new `Last touched`
-date; otherwise a UPDATE bumps `Last reviewed` alone. If `Touched` is absent
-and the Content does not state the date, **ask** — do not infer from tone. A
-completion removes the Active block, adds the Completed (recent) entry, and
-records the outcome where it belongs (claude/05 for a work product, claude/06
-or claude/10 for an environment fact, the Completed entry alone otherwise —
-never a manufactured ledger row). `Confirmation-date: yes` means the entry
-says "completion date not recorded; this is the confirmation date". A park
-drops the Due line and needs a Revive trigger. A `Blocked on:` line from a
-park-and-fork is removed when the fork's wrap updates the entry. An ADD whose
-name has no exact match and looks like an existing thread is added and
-flagged "possible rename of …". After any material change, the board needs a
-re-sync — see step 7.
+The Projects tool has no patch method. **Never retype a doc** — pull it
+byte-exact from the transcript. **Never two writes in parallel.** Work in
+one folder; for each changed doc in turn, apply all its blocks in one pass:
 
-**claude/05.** Status changes only with `Marker:` (`DEPLOYED` / `PILOTED` /
-`PARKED`, or `Retired` when Matt states a deployed thing was removed). No
-marker → leave Status, apply the rest of the row change, and put "status held,
-no marker" in the change report. `Confirmation-date: yes` → status date is
-the confirmation date and the Note says so. New rows insert by status-date
-order. Never delete; `Retired`. Trim a Note the packet delivers over ~80
-words — move the excess to the doc that owns it or say it was dropped; do
-not trim existing rows. Bump the header `Last reviewed` on a status change.
-
-**claude/12.** Before adding, search the target section for an existing entry
-on the same point. Gotchas: a repeat is a new dated entry that cross-references
-the earlier one — confirm the reference resolves. Calibrations: if the new
-entry would be the third on the same point, consolidate the three into one
-with dated instances (header rule). New entries go at the top of their
-section. Corrections are made in place with an HTML comment or an inline
-italic note giving the change and date.
-
-**claude/06.** Fold in; replace stale bullets in place; keep entries
-self-contained (no "see claude/10"). Remove a "Known gaps" line the fact
-closes. Bump `Last reviewed`.
-
-**claude/10.** Spine-level only (test: would advice be actively wrong if a
-session never read it?) — if a packet entry is detail, route it to claude/06
-and say so; leave existing Live entries where they are. A block with no
-`Tag:` whose Content does not literally carry `[CHANGE]` or `[CORRECTION]`:
-**ask Matt**. Never write an untagged entry and never default to CHANGE. On a
-fold-back instruction from Matt, follow the fold-back procedure in
-`doc-rules.md`.
-
-**claude/13.** `Promoted-from:` on a claude/11 ADD means the claude/13 item
-is deleted in this merge. REMOVE needs no justification.
-
-**Aliases and role descriptions.** Leave them exactly as written. "The
-primary DC" in this packet must stay "the primary DC" so it threads to every
-earlier mention.
-
-## 5. Surface conflicts; never resolve them silently
-
-When the packet contradicts an existing entry and does not say it supersedes
-it: apply the packet's version, attach a dated conflict note naming both
-readings, and list it in the change report. Escalate rather than resolve when
-a thread might be a rename, a claude/05 status would change without a marker,
-a claude/12 fix contradicts the recorded fix for the same symptom (usually two
-different causes — keep both, dated), or a claude/10 tag is missing.
-
-## 6. Never add what the packet does not contain
-
-No inferred facts, no smoothing prose, no "transitional" sentences that assert
-things. If the packet is thin, the merge is small. The one exception is
-mechanical: dates, `Last reviewed` bumps, and the claude/13 template header.
-
-## 7. Write, verify, report
-
-The Projects tool has no patch method and `project_read` returns content
-inline. **Never retype a doc**: pull it out of the session transcript with
-`pull_doc.py`, which is byte-exact, and costs no output. Retyping was slow,
-expensive, and silently dropped a line on the first live merge (claude/15 §4).
-On timeout a doc may be deleted (claude/12, 2026-09-10). Work in ONE working
-folder. For each changed doc, one at a time, apply ALL of its blocks in one
-pass:
-
-1. `project_read` it **now** — not a copy from step 3 if other writes happened
-   since.
-2. Pull that read to disk and make the working copy:
-
+1. `project_read` the doc now, and read its header comment.
+2. Pull it and make the working copy:
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pull_doc.py pull <doc-path> <doc>-orig.md
    cp <doc>-orig.md <doc>-new.md
    ```
-
-   If `pull_doc.py` fails for any reason other than a stale read (re-read and
-   retry), fall back to transcribing `<doc>-orig.md` by hand for this doc, say
-   so in the report, and use the step-7 fallback check.
-3. Make each packet change in `<doc>-new.md` as an exact-string edit whose
-   anchor matches exactly once. Never regenerate the doc.
-4. `diff <doc>-orig.md <doc>-new.md` — only the intended hunks may appear.
-5. Scan what THIS merge adds, not the whole doc — the live docs already carry
-   public values the scanner flags (a government domain, a Microsoft service
-   GUID, a version number shaped like an IPv4), so a whole-doc scan can never
-   pass and a gate that never passes gets ignored (first live run,
-   2026-09-24):
-
+   Stale read → re-read and retry. Any other failure → hand-transcribe this
+   doc only, and say so in the report.
+3. Each change is an exact-string edit on `<doc>-new.md` whose anchor
+   matches once. Never regenerate the doc.
+4. Check the diff and scan only what this merge adds (whole-doc scans fail
+   forever on pre-existing public values):
    ```bash
+   diff <doc>-orig.md <doc>-new.md
    diff <doc>-orig.md <doc>-new.md | grep '^>' | sed 's/^> //' | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/scan.py -
    ```
+   Only intended hunks may appear. A finding blocks the upload. Never "fix"
+   pre-existing content the packet does not touch.
+5. `project_write` with `local_path`. On timeout, retry immediately from the
+   local file — the doc may already be deleted. Never finish on a timed-out
+   write.
+6. `project_read` again, then
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pull_doc.py verify <doc-path> <doc>-new.md`.
+   Any difference: stop and report. (Hand-transcribed doc: heading count
+   plus distinctive strings from top, middle and end instead.)
 
-   A finding here blocks the upload. Report whole-doc findings separately as
-   information only, and never "fix" pre-existing content that the packet
-   does not touch.
-6. Upload with `project_write` using `local_path` (not inline content). **Never
-   two writes in parallel.** On a timeout, retry immediately from the local
-   file — the doc may already be deleted. Never finish on a timed-out write.
-7. Verify byte-exact: `project_read` the doc again, then
+Then check the cross-doc invariants in `routing.md` on the docs touched.
 
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pull_doc.py verify <doc-path> <doc>-new.md
-   ```
+**Board** (wrap mode). If claude/11 changed materially, re-sync the board
+per claude/14 — read it first; it is authoritative, including the count
+gate. Failed gate → do not write the board; report it. No artifact-database
+tool → say so; the next weekday sync covers it.
 
-   Any difference: stop and report. Fallback (hand-transcribed doc only):
-   heading count matches the local file, plus distinctive strings from the
-   top, middle and end.
+## 5. Report
 
-Check the cross-doc invariants at the end of `doc-rules.md`.
-
-**Board.** If claude/11 changed materially, re-sync the companion board now
-per claude/14 — read it first; it is authoritative, including the mandatory
-count gate. A failed gate means do not write the board; report it. If the
-artifact-database tool is not available to you, say so under `Board` and the
-next weekday sync will cover it.
-
-Print the change report — it is part of the deliverable:
+The change report is the deliverable:
 
 ```
 claude/11   2 updated (1 touched, 1 reviewed-only), 1 added, 1 → Completed
@@ -209,25 +147,18 @@ claude/12   1 added, 1 extended (dated instance on 2026-08-06 entry)
 claude/06   1 bullet replaced, "Known gaps" −1
 claude/10   untouched
 claude/13   1 removed (promoted)
-Scan        packet: 1 finding generalised (hostname → "the SIEM appliance"); docs: clean
+Scan        packet: clean; added lines: clean
 Conflicts   1 — see "<thread>" in claude/11
 Ask Matt    claude/10 entry tag (CHANGE vs CORRECTION) for "<entry>"
 Untouched   Active threads not mentioned: <list>
 Board       claude/11 changed — re-synced per claude/14, count gate passed (12/12)
-Writes      5 docs, sequential, all pulled (no retyping), all byte-verified after upload
+Writes      5 docs, sequential, all pulled (no retyping), all byte-verified
 ```
 
-The **Untouched** line matters: it names the Active threads this session did
-not speak to, which is how a stalled one gets noticed before it misleads.
+`Untouched` names the Active threads this packet did not speak to — how a
+stalled one gets noticed.
 
-## 8. Close
-
-When running as a subagent, stop at the change report — the parent session
-relays it and handles the closing lines. When running directly, three lines:
-
-1. **Commit nudge.** The claude/ docs are the continuity layer and have no
-   existence outside the project (they survived the 2026-08-25 project
-   deletion by luck). If a repo commit of the claude/ set is part of the
-   routine, this is the moment.
-2. **Board.** The re-sync outcome from step 7, in one line.
-3. **"Delete the source chat now that the merge is done."**
+As a subagent, stop at the report. Run directly, close with three lines:
+the commit nudge (the claude/ docs exist only in the project; commit them if
+due), the board outcome, and "Delete the source chat now that the merge is
+done."

@@ -33,11 +33,23 @@ import glob
 import json
 import os
 import sys
+import time
 
 
-def transcript_files():
+def transcript_files(max_age_min):
+    """Only transcripts written to within the age window: a read newer than the
+    limit can only be in one of those, and skipping the rest keeps this fast on
+    a machine with months of sessions."""
     base = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
-    return glob.glob(os.path.join(base, "projects", "**", "*.jsonl"), recursive=True)
+    cutoff = time.time() - (max_age_min + 1) * 60
+    files = []
+    for f in glob.glob(os.path.join(base, "projects", "**", "*.jsonl"), recursive=True):
+        try:
+            if os.path.getmtime(f) >= cutoff:
+                files.append(f)
+        except OSError:
+            pass
+    return files
 
 
 def result_text(block):
@@ -49,58 +61,78 @@ def result_text(block):
     return ""
 
 
-def find_reads(doc_path):
-    """Yield (timestamp, content) for every project_read of doc_path."""
-    for f in transcript_files():
+def parse_read(txt, doc_path):
+    """Return the doc body if txt is a project_read result for doc_path, else None."""
+    try:
+        res = json.loads(txt)
+    except ValueError:
+        return None
+    if not isinstance(res, dict) or res.get("method") != "project_read":
+        return None
+    if res.get("path") != doc_path:
+        return None
+    body = res.get("content")
+    if body is None:
+        # Large reads may come back as a local file path instead.
+        for k, v in res.items():
+            if "path" in k and k != "path" and isinstance(v, str) and os.path.isfile(v):
+                with open(v, encoding="utf-8", newline="") as lf:  # no newline translation
+                    body = lf.read()
+                break
+    return body
+
+
+def find_reads(doc_path, max_age_min):
+    """Yield (timestamp, content) for every project_read of doc_path. content is
+    None for a read whose call we can see but whose result we cannot parse
+    (e.g. the harness persisted a large result elsewhere) — the caller must
+    not silently fall back to an older read past it."""
+    calls = set()  # tool_use ids of project_read calls naming doc_path
+    for f in transcript_files(max_age_min):
         try:
             fh = open(f, encoding="utf-8")
         except OSError:
             continue
         with fh:
             for line in fh:
-                if "project_read" not in line or doc_path not in line:
+                if not (("project_read" in line and doc_path in line)
+                        or any(i in line for i in calls)):
                     continue  # cheap pre-filter
                 try:
                     rec = json.loads(line)
                 except ValueError:
                     continue
-                if rec.get("type") != "user":
-                    continue
                 content = rec.get("message", {}).get("content")
                 if not isinstance(content, list):
                     continue
                 for block in content:
-                    if not isinstance(block, dict) or block.get("type") != "tool_result":
+                    if not isinstance(block, dict):
                         continue
-                    txt = result_text(block)
-                    try:
-                        res = json.loads(txt)
-                    except ValueError:
+                    if rec.get("type") == "assistant" and block.get("type") == "tool_use":
+                        blob = json.dumps(block.get("input", {})) + str(block.get("name", ""))
+                        if "project_read" in blob and doc_path in blob and block.get("id"):
+                            calls.add(block["id"])
                         continue
-                    if not isinstance(res, dict) or res.get("method") != "project_read":
+                    if rec.get("type") != "user" or block.get("type") != "tool_result":
                         continue
-                    if res.get("path") != doc_path:
-                        continue
-                    body = res.get("content")
-                    if body is None:
-                        # Large reads may come back as a local file path instead.
-                        for k, v in res.items():
-                            if "path" in k and k != "path" and isinstance(v, str) and os.path.isfile(v):
-                                with open(v, encoding="utf-8") as lf:
-                                    body = lf.read()
-                                break
-                    if body is None:
-                        continue
-                    yield rec.get("timestamp", ""), body
+                    body = parse_read(result_text(block), doc_path)
+                    if body is not None:
+                        yield rec.get("timestamp", ""), body
+                    elif block.get("tool_use_id") in calls:
+                        yield rec.get("timestamp", ""), None
 
 
 def newest(doc_path, max_age_min):
-    reads = sorted(find_reads(doc_path), key=lambda r: r[0])
+    reads = sorted(find_reads(doc_path, max_age_min), key=lambda r: r[0])
     if not reads:
         sys.exit(f"FAIL: no project_read of {doc_path} found in any transcript. "
                  f"Read the doc first; if you just did, the transcript layout may "
                  f"have changed — fall back to hand transcription.")
     ts, body = reads[-1]
+    if body is None:
+        sys.exit(f"FAIL: the newest read of {doc_path} ({ts}) is in the transcript but its "
+                 f"content could not be parsed (persisted elsewhere, or the layout changed). "
+                 f"Refusing to fall back to an older read — hand-transcribe this doc.")
     try:
         when = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
         age = (dt.datetime.now(dt.timezone.utc) - when).total_seconds() / 60

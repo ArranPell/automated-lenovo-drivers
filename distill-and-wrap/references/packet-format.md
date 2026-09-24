@@ -1,9 +1,8 @@
 # Merge Packet Format (v3)
 
 The merge packet is the contract between the session that drafts a change and
-whatever applies it — since v0.3.0, either that same session (in-session
-writes) or an isolated subagent that sees only the packet (wrap merge). Both
-skills read this file. The block is what gets scanned and what Matt reviews,
+the isolated merge subagent that applies it (checkpoints and wrap merges
+alike). The block is what gets scanned and what Matt reviews,
 so its shape is the same regardless of who writes it.
 
 The core block format is defined in claude/15 §4 and summarised in the project
@@ -43,7 +42,7 @@ Ending: wrap | park-and-fork <fork name> | discard
 Scanner: clean | <n> findings generalised
 ```
 
-`Ending: discard` needs no packet at all since v0.3.0 — nothing is written.
+`Ending: discard` needs no packet at all — nothing is written.
 
 ## Block format (required)
 
@@ -136,7 +135,7 @@ Scanner: clean. Say merge to apply.
 
 Packets in the v1 format (`=== WRAP PACKET v1 ===` with STATUS / GOTCHAS /
 DECISIONS / OPEN sections) are no longer produced. If one is pasted, the merge
-side must translate it under the per-doc rules in `doc-rules.md` before
+side must translate it under the per-doc rules in `doc-rules/` before
 merging, and say that it did so — the v1 sections do not map one-to-one onto
 the project docs (there is no decisions doc; "status" splits across claude/05
 and claude/11).

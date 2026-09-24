@@ -13,9 +13,22 @@ Exit codes:
 Allowlist: two sources, both optional, merged:
   1. allowlist.txt beside this script (shipped with the plugin — public vendor
      domains and known false positives for the NLC estate).
-  2. .wrap/allowlist.txt, searched from the scanned file's directory upward.
-One entry per line, '#' starts a comment. Entries match as case-insensitive
-substrings against the matched text.
+  2. .wrap/allowlist.txt, searched upward from the scanned file's directory,
+     then upward from the working directory.
+One entry per line, '#' starts a comment. Matching is by class:
+  - url, fqdn, host-port, internal-tld: the HOST must equal the entry or end
+    with "." + entry (so "live.com" covers "login.live.com", not "olive.com").
+    A URL's query string and fragment are scanned separately, so an internal
+    host tucked into a redirect parameter is still caught.
+  - email: only an entry equal to the whole address. A public mail domain
+    never waves through the username in front of it.
+  - everything else: the entry must equal the whole match ("1.2.3.4" does not
+    cover "11.2.3.45").
+
+Denylist: .wrap/denylist.txt (same search), one case-insensitive regex per
+line — estate naming conventions the generic patterns cannot see, such as a
+short hostname prefix. Denylist hits are never allowlisted. Keep that file
+out of the docs; it is itself an identifier list.
 
 Scope: the project sanitization rule is "no hostnames, IPs, usernames,
 credentials, or security finding specifics." This scanner covers the first
@@ -59,7 +72,8 @@ PATTERNS = [
     # URL first so a whole URL is one finding and one allowlist decision.
     (
         "url",
-        re.compile(r"\bhttps?://[^\s\"'<>)\]]+", re.I),
+        # Stops at ? and # so the query/fragment is scanned as ordinary text.
+        re.compile(r"\bhttps?://[^\s\"'<>)\]?#]+", re.I),
     ),
     (
         "arn",
@@ -132,35 +146,55 @@ PATTERNS = [
 ]
 
 
-def read_allowlist_file(path, entries):
+def read_list_file(path, entries, lower=True):
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as handle:
             for raw in handle:
                 line = raw.split("#", 1)[0].strip()
                 if line:
-                    entries.append(line.lower())
+                    entries.append(line.lower() if lower else line)
     except OSError:
         pass
 
 
-def load_allowlist(start_path):
-    """Shipped allowlist beside this script, plus .wrap/allowlist.txt found by
-    walking upward from start_path."""
-    entries = []
+def find_local(name, start_dirs):
+    """First .wrap/<name> found walking upward from each start dir, deduped."""
+    found = []
+    for start in start_dirs:
+        directory = os.path.abspath(start)
+        while True:
+            candidate = os.path.join(directory, ".wrap", name)
+            if os.path.isfile(candidate):
+                if candidate not in found:
+                    found.append(candidate)
+                break
+            parent = os.path.dirname(directory)
+            if parent == directory:
+                break
+            directory = parent
+    return found
+
+
+def load_lists(start_path):
+    """(allowlist entries, compiled denylist patterns)."""
+    starts = [start_path if os.path.isdir(start_path) else os.path.dirname(start_path) or ".",
+              os.getcwd()]
+    allow = []
     shipped = os.path.join(os.path.dirname(os.path.abspath(__file__)), "allowlist.txt")
-    if os.path.isfile(shipped):
-        read_allowlist_file(shipped, entries)
-    directory = os.path.abspath(start_path if os.path.isdir(start_path) else os.path.dirname(start_path) or ".")
-    while True:
-        candidate = os.path.join(directory, ".wrap", "allowlist.txt")
-        if os.path.isfile(candidate):
-            read_allowlist_file(candidate, entries)
-            break
-        parent = os.path.dirname(directory)
-        if parent == directory:
-            break
-        directory = parent
-    return entries
+    read_list_file(shipped, allow)
+    for path in find_local("allowlist.txt", starts):
+        read_list_file(path, allow)
+    deny_src = []
+    for path in find_local("denylist.txt", starts):
+        read_list_file(path, deny_src, lower=False)
+    deny = []
+    for pattern in deny_src:
+        try:
+            deny.append(re.compile(pattern, re.I))
+        except re.error as error:
+            sys.stderr.write("bad denylist regex %r: %s\n" % (pattern, error))
+            sys.exit(2)
+    return allow, deny
 
 
 def valid_ipv4(text):
@@ -173,14 +207,27 @@ def valid_ipv4(text):
         return False
 
 
-def allowlisted(text, allowlist):
-    lowered = text.lower()
-    return any(entry in lowered for entry in allowlist)
+HOST_CLASSES = {"url", "fqdn", "host-port", "internal-tld"}
 
 
-def keep(cls, text, allowlist):
-    if allowlisted(text, allowlist):
-        return False
+def host_of(cls, text):
+    text = text.lower()
+    if cls == "url":
+        text = text.split("://", 1)[1]
+        text = text.split("/", 1)[0].rsplit("@", 1)[-1]
+    if cls in ("url", "host-port"):
+        text = text.rsplit(":", 1)[0] if ":" in text else text
+    return text.rstrip(".")
+
+
+def allowlisted(cls, text, allowlist):
+    if cls in HOST_CLASSES:
+        host = host_of(cls, text)
+        return any(host == e or host.endswith("." + e) for e in allowlist)
+    return text.lower() in allowlist
+
+
+def keep(cls, text):
     if cls == "ipv4":
         return valid_ipv4(text) and text not in IP_IGNORE
     if cls == "cidr":
@@ -202,22 +249,29 @@ def keep(cls, text, allowlist):
     return True
 
 
-def scan(lines, allowlist):
+def scan(lines, allowlist, denylist=()):
     findings = []
     for number, line in enumerate(lines, start=1):
         claimed = []
+        for pattern in denylist:
+            for match in pattern.finditer(line):
+                start, end = match.span()
+                if any(start < c_end and end > c_start for c_start, c_end in claimed):
+                    continue
+                claimed.append((start, end))
+                findings.append((number, "denylist", match.group(0)))
         for cls, pattern in PATTERNS:
             for match in pattern.finditer(line):
                 start, end = match.span()
                 if any(start < c_end and end > c_start for c_start, c_end in claimed):
                     continue
                 text = match.group(0)
-                if allowlisted(text, allowlist):
+                if allowlisted(cls, text, allowlist):
                     # An allowlisted span shadows anything nested inside it
                     # (e.g. the artifact id inside an allowlisted claude.ai URL).
                     claimed.append((start, end))
                     continue
-                if not keep(cls, text, allowlist):
+                if not keep(cls, text):
                     continue
                 claimed.append((start, end))
                 findings.append((number, cls, text))
@@ -232,7 +286,7 @@ def main(argv):
     target = argv[1]
     if target == "-":
         lines = sys.stdin.read().splitlines()
-        allowlist = load_allowlist(os.getcwd())
+        allowlist, denylist = load_lists(os.getcwd())
     else:
         try:
             with open(target, "r", encoding="utf-8", errors="replace") as handle:
@@ -240,13 +294,13 @@ def main(argv):
         except OSError as error:
             sys.stderr.write("cannot read %s: %s\n" % (target, error))
             return 2
-        allowlist = load_allowlist(target)
+        allowlist, denylist = load_lists(target)
 
-    findings = scan(lines, allowlist)
+    findings = scan(lines, allowlist, denylist)
 
     if not findings:
-        print("CLEAN — %d lines scanned, %d pattern classes, 0 findings."
-              % (len(lines), len(PATTERNS)))
+        print("CLEAN — %d lines scanned, %d pattern classes, %d denylist patterns, 0 findings."
+              % (len(lines), len(PATTERNS), len(denylist)))
         return 0
 
     width = max(len(cls) for _, cls, _ in findings)

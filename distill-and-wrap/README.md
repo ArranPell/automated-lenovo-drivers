@@ -1,4 +1,4 @@
-# distill-and-wrap (v0.3.2)
+# distill-and-wrap (v0.4.0)
 
 Two skills that close the loop between a work session in the NLC Security
 project and the living docs it should feed.
@@ -19,7 +19,8 @@ sensitive chats can be deleted once the work is done:
 
 Since v0.3.0 (2026-09-24) chat and Cowork are one experience, so a chat can
 write the docs itself. Small changes (stubs, checkpoints, park-and-fork) are
-written **in-session**, unprompted, behind the identifier scanner. The wrap is
+written **in-session**, unprompted, behind the identifier scanner, by the
+same isolated merge subagent the wrap uses (since v0.4.0). The wrap is
 still a **merge packet** — one `Doc / Action / Anchor / Content` block per
 change — but it is scanned, shown to Matt, and on his go merged by a **Sonnet
 subagent that receives only the packet**. That rebuilds the old sanitization
@@ -27,18 +28,62 @@ gate (claude/12 2026-08-25) from three parts instead of a session boundary:
 scanner before every write, Matt's review of the wrap, and a merger that never
 sees the chat. Process of record: claude/15 §3–§4.
 
-## The two skills
+## The three skills
 
-**wrap-session** — does the in-session writes as they fall due, and at the end
-picks the ending (wrap / park-and-fork / discard), drafts under each doc's
-rules, sanitizes and scans, shows the packet, and on Matt's go spawns the
-isolated merge subagent and relays its change report.
+**checkpoint** — the mid-session writes (stub, checkpoint, park-and-fork),
+unprompted as they fall due. Drafts the block, scans it, and hands it to the
+merge subagent; the doc itself never enters the chat.
+
+**wrap-session** — the end of the chat: wrap, discard, or residual sweep.
+Drafts under each doc's rules, sanitizes and scans, shows the packet, and on
+Matt's go spawns the isolated merge subagent and relays its change report.
 
 **merge-packet** — normally run by that subagent (usable directly too). Runs
 the identifier scanner over the packet as a hard gate, reads the target docs,
 applies each block under that doc's contract with surgical
 pull-edit-upload writes (byte-exact, never retyped), re-syncs the board if claude/11 changed, re-scans what it wrote, and prints a change report that
 names what it did not touch.
+
+## What changed in v0.4.0
+
+Fixes:
+
+- **Scanner allowlist leaks.** Entries matched as substrings of the whole
+  match, so `jsmith@outlook.com` passed (`outlook.com` is allowlisted),
+  `olive.com` passed (`live.com`), a SharePoint tenant URL passed when its
+  query string contained `learn.microsoft.com`, an internal FQDN in a
+  redirect parameter of a Microsoft docs URL passed, and a `1.2.3.4` entry
+  hid `11.2.3.45`. Hosts now match by domain suffix, emails only by exact
+  address, everything else exactly; URL query strings and fragments are
+  scanned on their own.
+- **New `.wrap/denylist.txt`** for estate hostname conventions — bare short
+  hostnames are otherwise invisible to the scanner.
+- **`pull_doc.py`** no longer falls back silently to an older read when the
+  newest read's result cannot be parsed (for instance a large result the
+  harness persisted to a file) — it fails loudly. It only opens transcripts
+  touched within the age window, and the file-path fallback no longer
+  translates newlines, so it is byte-exact.
+- Plugin-root fallback looks up plugin.json by `name`, not directory, and
+  tolerates non-numeric version parts.
+- The merge subagent no longer edits the packet or the allowlist to get past
+  a scan finding; the packet was clean when Matt saw it, so a finding is a
+  discrepancy to report.
+
+Cost and speed:
+
+- **All doc writes go through the Sonnet merge subagent**, checkpoints
+  included. A write needs the doc read in full twice; done in the main chat,
+  both copies stayed in its context and were re-sent on every later turn.
+- **Merge reads each doc once, just in time** — the up-front bulk read
+  (three full reads per doc) is gone; now it is read, edit, write, read back.
+- **Residual sweep skips re-reading docs whose upload was byte-verified.**
+- **Lazy references.** `doc-rules.md` is split into `doc-rules/routing.md`
+  plus one file per doc; sessions read only the docs they touch.
+  Mid-session writes load the small `checkpoint` skill instead of the whole
+  wrap workflow.
+- **Shorter skill bodies and descriptions.** Version history and rationale
+  moved out of the skills (into this file); the descriptions, which are
+  loaded into every session, are roughly half their old length.
 
 ## What changed in v0.3.2
 
@@ -108,21 +153,25 @@ distill-and-wrap/
 ├── .claude-plugin/plugin.json
 ├── README.md
 ├── references/
-│   ├── packet-format.md        the handoff contract (v2)
-│   ├── doc-rules.md            per-doc maintenance rules + cross-doc invariants
+│   ├── packet-format.md        the handoff contract
+│   ├── merge-subagent.md       how to spawn the isolated merger (shared)
+│   ├── doc-rules/
+│   │   ├── routing.md          routing table, spine test, cross-doc invariants
+│   │   └── 05-…, 06-…, 10-…, 11-…, 12-…, 13-….md   per-doc contracts
 │   └── sanitization-rules.md   what must not appear, what to write instead
 ├── scripts/
 │   ├── scan.py                 identifier scanner (stdlib only; exit 1 on findings)
 │   ├── pull_doc.py             byte-exact doc pull/verify from session transcripts
 │   └── allowlist.txt           shipped public-value allowlist
 └── skills/
+    ├── checkpoint/SKILL.md
     ├── wrap-session/SKILL.md
     └── merge-packet/SKILL.md
 ```
 
 ## Keeping it current
 
-`doc-rules.md` is a snapshot. The docs' own header comments are authoritative
+`doc-rules/` is a snapshot. The docs' own header comments are authoritative
 and are amended in session; when a header says something this plugin does
 not, the header wins and the plugin should be updated. When the project
 instructions change the packet format, `packet-format.md` follows.

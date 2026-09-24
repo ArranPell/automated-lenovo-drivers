@@ -69,20 +69,35 @@ over-generalisation later costs one lookup. The other direction has no undo.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/scan.py` is a standard-library Python script
 that checks text for surviving identifiers and exits non-zero on any finding.
-Since v0.3.0 every session has a shell, so it runs on both sides: wrap-session
-runs it over every draft before it is shown or written (in-session writes
-included), and the merge side runs it again over the packet as an independent
-gate and over each doc before upload.
+It runs on the drafting side over every packet before it is shown or
+written, and on the merge side again over the packet and over the lines each
+write adds.
 
 Pattern classes: `arn`, `guid`, `unc`, `url`, `email`, `account`, `mac`,
-`cidr`, `ipv6`, `ipv4`, `internal-tld`, `home-path`, `host-port`, `fqdn`.
+`cidr`, `ipv6`, `ipv4`, `internal-tld`, `home-path`, `host-port`, `fqdn`,
+plus `denylist`.
+
+**Blind spot: bare short hostnames** (`DC01`, `dc01:389`). Nothing generic
+distinguishes them from words. Put the estate's naming conventions in
+`.wrap/denylist.txt` as case-insensitive regexes (e.g. `\bnlc[a-z]{2,4}\d{2}\b`);
+denylist hits are never allowlisted. That file is itself an identifier list —
+keep it local, never in the docs.
 
 Known false positives: four-part version numbers (`1.2.3.4`) flag as `ipv4`;
-allowlist the specific string. Public vendor domains flag as `fqdn`/`url` by
+allowlist the exact string. Public vendor domains flag as `fqdn`/`url` by
 design; the shipped `allowlist.txt` covers the ones this estate cites.
 
-Allowlist resolution: `${CLAUDE_PLUGIN_ROOT}/scripts/allowlist.txt` (shipped),
-plus `.wrap/allowlist.txt` searched upward from the scanned file if one exists.
-Entries match as case-insensitive substrings. Every entry is a permanent hole
-in the scan — add only genuinely public values, and prefer the most specific
-string (`learn.microsoft.com` over `microsoft`).
+Allowlist: `${CLAUDE_PLUGIN_ROOT}/scripts/allowlist.txt` (shipped) plus
+`.wrap/allowlist.txt` found upward from the scanned file, then from the
+working directory. Matching depends on the class:
+
+- Hosts (url, fqdn, host-port, internal-tld): the host must equal the entry
+  or be a subdomain of it — `live.com` covers `login.live.com`, not
+  `olive.com`. A URL's query string and fragment are scanned on their own,
+  so an internal host in a redirect parameter is still caught.
+- Email: only the exact address. A public mail domain never waves the
+  username through.
+- Everything else: the exact string — `1.2.3.4` does not cover `11.2.3.45`.
+
+Every entry is a permanent hole in the scan — add only genuinely public
+values, as specifically as possible.
